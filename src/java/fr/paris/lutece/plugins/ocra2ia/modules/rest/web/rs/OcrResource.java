@@ -36,7 +36,9 @@ package fr.paris.lutece.plugins.ocra2ia.modules.rest.web.rs;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -126,6 +128,7 @@ public class OcrResource
     public String parseImageFile( @Context HttpServletRequest request, String strJsonData )
     {
         JSONObject jsonObject = new JSONObject( );
+        Map<String, String> ocrResults = new HashMap<>( );
         try
         {
             if ( !controleJsonData( strJsonData ) )
@@ -134,7 +137,7 @@ public class OcrResource
             }
             // proceed OCR
             AppLogService.info( "OCR begin !!" );
-            _ocrService.proceed( _byteFileContent, _strFileExtension, _strDocumentType );
+            ocrResults = _ocrService.proceed( _byteFileContent, _strFileExtension, _strDocumentType );
 
         } catch ( IOException e )
         {
@@ -148,7 +151,9 @@ public class OcrResource
         }
 
         AppLogService.info( "OCR end !!" );
-        return strJsonData;
+        jsonObject.accumulateAll( ocrResults );
+
+        return jsonObject.toString( );
     }
 
     /**
