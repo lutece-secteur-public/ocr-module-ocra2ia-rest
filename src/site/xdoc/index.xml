@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document>
+    <properties>
+        <title>Module ocra2ia rest</title>
+    </properties>
+    <body>
+        <section name="Module ocra2ia rest">
+           <subsection id="presentation" name="Presentation">
+            <p>
+              This module exposes a rest web service to perform OCR of a document. The web service is in Post mode and is exposed on the URL http://&lt;server host&gt;&lt;server port&gt;/&lt;site path&gt;/rest/ocr/start       
+            </p>
+            <p>
+              To perform OCR on document send a request like this :  
+              <div class="source">
+                <pre>
+                   curl --header "Content-Type: application/json" --request POST --data '{"filecontent":"9j/4AAQSkZJRg....","fileextension":"Jpeg", "documenttype":"rib"}' http://localhost:8080/ocr/rest/ocr/start
+                </pre>
+              </div>
+              The data request must be a json flux with 3 keys : 
+              <ul>
+               <li>filecontent : image file encoded in base64.</li>
+               <li>fileextension : extension of the image file.</li>
+               <li>documenttype : type of document to proceed by OCR.</li>
+              </ul> 
+            </p>
+            <p>
+              The response of the web service is the OCR result in a json flux :
+              <div class="source">
+                <pre>
+                   {
+                     "Rib result": "30066_XXXXX_00010461001_XX",
+                     "Code Banque": "30066",
+                     "RIB Address": "Monsieur Xxxx 80 RUE XXXXXX 75009 PARIS ",
+                     "Clé RIB": "XX",
+                     "IBAN": "FRXXXXXXXXXXXXXXXXXXXXXXXXX",
+                     "Account number": "XXXXXX",
+                     "Code Guichet": "XXXXX",
+                     "BIC": "XXXXX"
+                   }
+                </pre>
+              </div>
+            </p>
+           </subsection>
+        </section>
+    </body>
+</document>
