@@ -78,6 +78,7 @@ public class OcrResource
     private static final String JSON_KEY_FILE_EXTENSION   = "fileextension";
     private static final String JSON_KEY_DOCUMENT_TYPE    = "documenttype";
     private static final String JSON_KEY_MESSAGE          = "message";
+    private static final String JSON_UTF8_CONTENT_TYPE    = "application/json; charset=UTF-8";
 
     /**
      * File to parse with OCR
@@ -124,7 +125,7 @@ public class OcrResource
     @POST
     @Path( "/start" )
     @Consumes( MediaType.APPLICATION_JSON )
-    @Produces( MediaType.APPLICATION_JSON )
+    @Produces( JSON_UTF8_CONTENT_TYPE )
     public String parseImageFile( @Context HttpServletRequest request, String strJsonData )
     {
         JSONObject jsonObject = new JSONObject( );
