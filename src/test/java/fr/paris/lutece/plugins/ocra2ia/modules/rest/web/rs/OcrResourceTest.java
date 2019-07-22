@@ -3,7 +3,6 @@ package fr.paris.lutece.plugins.ocra2ia.modules.rest.web.rs;
 
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Base64;
@@ -11,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 
 import org.junit.Assert;
@@ -25,10 +25,19 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 import net.sf.json.JSONObject;
 
 public class OcrResourceTest { 
+	
+	// constants
+    private static final String JSON_KEY_FILE_CONTENT     = "filecontent";
+    private static final String JSON_KEY_FILE_EXTENSION   = "fileextension";
+    private static final String JSON_KEY_DOCUMENT_TYPE    = "documenttype";
+    private static final String SERVICE_REST_OCR_URL = "http://localhost:8080/site-ocr/rest/ocr/start";
+	private static final String RIBS_DATA_SAMPLE_DIRECTORY = "ribs/";
+	private static final String SRC_TEST_RESOURCES = "src/test/resources/";
+	
 
 	@Test
 	public void sendInSameTimeRibOCRRequestTest() throws IOException, InterruptedException {
-
+		
 		Map<String,String> filesResults= new HashMap<>();
 		
 		filesResults.put("RIB11 JPEG CORRECT (similaire RIB3).jpg", "{Rib result=30002_06900_0000032434G_03, Code Banque=30002, ClÃ© RIB=03, IBAN=FR3830002069000000032434G03, Account number=0000032434G, Code Guichet=06900, BIC=CRLYFRPP}");
@@ -41,7 +50,7 @@ public class OcrResourceTest {
 			Thread thread = new Thread() {
 				public void run() {
 					String fileName = entry.getKey();
-					Map response = sendOcrRequest(fileName);
+					Map<?,?> response = sendOcrRequest(fileName);
 					String exepectedResult = entry.getValue();
 					Assert.assertEquals(exepectedResult, response.toString());
 					System.out.println(fileName+": "+response.toString());
@@ -53,30 +62,41 @@ public class OcrResourceTest {
 		Thread.sleep(30000);
 	}
 
-	private Map sendOcrRequest(String fileName) {
+	/**
+	 * send Ocr Request
+	 * @param fileName
+	 * @return
+	 */
+	private Map<?,?> sendOcrRequest(String fileName) {
 		ClientConfig config = new DefaultClientConfig();
 		Client client = Client.create(config);
-		WebResource service = client.resource("http://localhost.paris.mdp:8080/site-ocr/rest/ocr/start");
+		WebResource service = client.resource(SERVICE_REST_OCR_URL);
 
-		JSONObject my_data = new JSONObject();
+		JSONObject jsonData = new JSONObject();
 
-		File file_upload = new File("src/test/resources/ribs/" + fileName);
-		my_data.put("fileextension", file_upload.getName().split("\\.")[1]);
-		my_data.put("documenttype", "rib");
-		my_data.put("filecontent", convertFileToString(file_upload));
+		File file_upload = new File(SRC_TEST_RESOURCES+RIBS_DATA_SAMPLE_DIRECTORY + fileName);
+		jsonData.put(JSON_KEY_FILE_EXTENSION, file_upload.getName().split("\\.")[1]);
+		jsonData.put(JSON_KEY_DOCUMENT_TYPE, "rib");
+		jsonData.put(JSON_KEY_FILE_CONTENT, convertFileToString(file_upload));
 
-		ClientResponse client_response = service.accept(MediaType.APPLICATION_JSON)
-				.header("content-type", MediaType.APPLICATION_JSON).type(MediaType.APPLICATION_JSON)
-				.post(ClientResponse.class, my_data);
+		ClientResponse clientResponse = service.accept(MediaType.APPLICATION_JSON)
+				.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON).type(MediaType.APPLICATION_JSON)
+				.post(ClientResponse.class, jsonData);
 
-		Map response = client_response.getEntity(HashMap.class);
+		Map<?,?> response = clientResponse.getEntity(HashMap.class);
 
 		client.destroy();
 
 		return response;
 	}
 
-	public final String convertFileToString(File file) {
+	/**
+	 * convert File To String
+	 * 
+	 * @param file
+	 * @return
+	 */
+	private final String convertFileToString(File file) {
 		byte[] bytes = null;
 		try {
 			bytes = Files.readAllBytes(file.toPath());
@@ -86,13 +106,4 @@ public class OcrResourceTest {
 		return new String(Base64.getEncoder().encode(bytes));
 	}
 
-	// Convert a Base64 string and create a file
-	public final void convertFile(String file_string, String file_name) throws IOException {
-		byte[] bytes = Base64.getDecoder().decode(file_string);
-		File file = new File("local_path/" + file_name);
-		FileOutputStream fop = new FileOutputStream(file);
-		fop.write(bytes);
-		fop.flush();
-		fop.close();
-	}
 }
