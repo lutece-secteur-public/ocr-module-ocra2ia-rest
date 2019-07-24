@@ -36,7 +36,6 @@ package fr.paris.lutece.plugins.ocra2ia.modules.rest.web.rs;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -49,8 +48,11 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.ObjectReader;
 
 import fr.paris.lutece.plugins.ocra2ia.exception.OcrException;
 import fr.paris.lutece.plugins.ocra2ia.service.OcrService;
@@ -81,23 +83,15 @@ public class OcrResource
     private static final String JSON_UTF8_CONTENT_TYPE    = "application/json; charset=UTF-8";
 
     /**
-     * File to parse with OCR
-     */
-    private byte[]              _byteFileContent;
-    /**
-     * File extension
-     */
-    private String              _strFileExtension;
-    /**
-     * DocumentType
-     */
-    private String              _strDocumentType;
-
-    /**
      * OCR Service
      */
     @Inject
     private OcrService          _ocrService;
+    
+    /**
+     * Json object reader
+     */
+    private static final ObjectReader _jsonObjectReader = new ObjectMapper( ).reader(JSONObject.class);
 
     /**
      * Web Service test to check if service is up.
@@ -120,42 +114,84 @@ public class OcrResource
      *            the http request
      * @param strJsonData
      *            json string data must content file content, file extension and document type
-     * @return result of the OCR in json format
+     * @return result of the OCR in json format, 200 OK, 400 erreur client, 500 erreur serveur
+     * 
      */
     @POST
     @Path( "/start" )
     @Consumes( MediaType.APPLICATION_JSON )
-    @Produces( JSON_UTF8_CONTENT_TYPE )
-    public String parseImageFile( @Context HttpServletRequest request, String strJsonData )
+    @Produces( MediaType.APPLICATION_JSON )
+    public Response parseImageFile( @Context HttpServletRequest request, String strJsonData )
     {
-        JSONObject jsonObject = new JSONObject( );
-        Map<String, String> ocrResults = new HashMap<>( );
         try
         {
-            if ( !controleJsonData( strJsonData ) )
+            JSONObject jsonRequestObject = _jsonObjectReader.readValue( strJsonData );
+        	
+            if ( !controleJsonData( jsonRequestObject ) )
             {
-                return jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_JSON_DATA, request.getLocale( ) ) ).toString( );
+                return clientErrorResponse(request, MESSAGE_ERROR_JSON_DATA);
             }
+            
+            String _strFileExtension = jsonRequestObject.getString( JSON_KEY_FILE_EXTENSION );
+            byte[] _byteFileContent = Base64.getDecoder( ).decode( jsonRequestObject.getString( JSON_KEY_FILE_CONTENT ).getBytes( StandardCharsets.UTF_8 ) );
+            String _strDocumentType = jsonRequestObject.getString( JSON_KEY_DOCUMENT_TYPE );
+            
             // proceed OCR
             AppLogService.info( "OCR begin !!" );
-            ocrResults = _ocrService.proceed( _byteFileContent, _strFileExtension, _strDocumentType );
-
+            Map<String, String> ocrResults = _ocrService.proceed( _byteFileContent, _strFileExtension, _strDocumentType );
+            AppLogService.info( "OCR end !!" );
+            
+            return ocrResultResponse(ocrResults);
+            
         } catch ( IOException e )
         {
             AppLogService.error( e.getMessage( ), e );
-            return jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_JSON_DATA, request.getLocale( ) ) ).toString( );
+            return clientErrorResponse(request, MESSAGE_ERROR_JSON_DATA);
         } catch ( OcrException e )
         {
             AppLogService.error( e.getMessage( ), e );
-            String[] messageArgs = { e.getMessage( ) };
-            return jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_OCR_PROCESS, messageArgs, request.getLocale( ) ) ).toString( );
+            return serverErrorResponse(request, MESSAGE_ERROR_OCR_PROCESS, e.getMessage( ));
         }
-
-        AppLogService.info( "OCR end !!" );
-        jsonObject.accumulateAll( ocrResults );
-
-        return jsonObject.toString( );
     }
+
+	/**
+	 * ocr Result Response
+	 * 
+	 * @param ocrResults the ocr result
+	 * @return ok response 200 with json format of ocr result data
+	 */
+	private Response ocrResultResponse(Map<String, String> ocrResults) {
+		JSONObject jsonObject = new JSONObject( );
+		jsonObject.accumulateAll( ocrResults );
+		return Response.ok().entity(jsonObject.toString()).build();
+	}
+
+	/**
+	 * Client Error Response
+	 * 
+	 * @param request            the request
+	 * @param messagePropertyKey the message Property Key
+	 * @return bad request error 400
+	 */
+	private Response clientErrorResponse(HttpServletRequest request, String messagePropertyKey) {
+		JSONObject jsonObject = new JSONObject( );
+		jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_JSON_DATA, request.getLocale( ) ) );
+		return Response.status(Status.BAD_REQUEST).entity(jsonObject.toString()).build();
+	}
+	
+	/**
+	 * Server Error Response
+	 * 
+	 * @param request            the request
+	 * @param messagePropertyKey the message Property Key
+	 * @param messageArgs        the message Args
+	 * @return server error 500
+	 */
+	private Response serverErrorResponse(HttpServletRequest request, String messagePropertyKey, String ... messageArgs) {
+		JSONObject jsonObject = new JSONObject( );
+		jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_OCR_PROCESS, messageArgs, request.getLocale( ) ) );
+		return Response.serverError().entity(jsonObject.toString()).build();
+	}
 
     /**
      * Control of coherence of the json flux.
@@ -166,25 +202,9 @@ public class OcrResource
      * @throws IOException
      *             the IOException
      */
-    private boolean controleJsonData( String strJsonData ) throws IOException
+    private boolean controleJsonData(JSONObject jsonObject)
     {
-
-        boolean res = false;
-
-        ObjectMapper mapper = new ObjectMapper( );
-        JSONObject jsonObject = mapper.readValue( strJsonData, JSONObject.class );
-
-        if ( jsonObject.containsKey( JSON_KEY_FILE_CONTENT ) && jsonObject.containsKey( JSON_KEY_FILE_EXTENSION ) && jsonObject.containsKey( JSON_KEY_DOCUMENT_TYPE ) )
-        {
-            res = true;
-
-            _strFileExtension = jsonObject.getString( JSON_KEY_FILE_EXTENSION );
-            _byteFileContent = Base64.getDecoder( ).decode( jsonObject.getString( JSON_KEY_FILE_CONTENT ).getBytes( StandardCharsets.UTF_8 ) );
-            _strDocumentType = jsonObject.getString( JSON_KEY_DOCUMENT_TYPE );
-
-        }
-
-        return res;
+        return  jsonObject.containsKey( JSON_KEY_FILE_CONTENT ) && jsonObject.containsKey( JSON_KEY_FILE_EXTENSION ) && jsonObject.containsKey( JSON_KEY_DOCUMENT_TYPE ) ;
     }
 
 }
