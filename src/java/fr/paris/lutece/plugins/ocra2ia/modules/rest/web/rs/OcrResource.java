@@ -71,27 +71,27 @@ public class OcrResource
 {
 
     // i18n message
-    private static final String MESSAGE_TEST_WS_OK        = "module.ocra2ia.rest.message.ws.test.ok";
-    private static final String MESSAGE_ERROR_JSON_DATA   = "module.ocra2ia.rest.message.error.json.data";
+    private static final String MESSAGE_TEST_WS_OK = "module.ocra2ia.rest.message.ws.test.ok";
+    private static final String MESSAGE_ERROR_JSON_DATA = "module.ocra2ia.rest.message.error.json.data";
     private static final String MESSAGE_ERROR_OCR_PROCESS = "module.ocra2ia.rest.message.error.ocr.process";
 
     // constants
-    private static final String JSON_KEY_FILE_CONTENT     = "filecontent";
-    private static final String JSON_KEY_FILE_EXTENSION   = "fileextension";
-    private static final String JSON_KEY_DOCUMENT_TYPE    = "documenttype";
-    private static final String JSON_KEY_MESSAGE          = "message";
-    private static final String JSON_UTF8_CONTENT_TYPE    = "application/json; charset=UTF-8";
+    private static final String JSON_KEY_FILE_CONTENT = "filecontent";
+    private static final String JSON_KEY_FILE_EXTENSION = "fileextension";
+    private static final String JSON_KEY_DOCUMENT_TYPE = "documenttype";
+    private static final String JSON_KEY_MESSAGE = "message";
+    private static final String JSON_UTF8_CONTENT_TYPE = "application/json; charset=UTF-8";
 
     /**
      * OCR Service
      */
     @Inject
-    private OcrService          _ocrService;
-    
+    private OcrService _ocrService;
+
     /**
      * Json object reader
      */
-    private static final ObjectReader _jsonObjectReader = new ObjectMapper( ).reader(JSONObject.class);
+    private static final ObjectReader _jsonObjectReader = new ObjectMapper( ).reader( JSONObject.class );
 
     /**
      * Web Service test to check if service is up.
@@ -126,72 +126,83 @@ public class OcrResource
         try
         {
             JSONObject jsonRequestObject = _jsonObjectReader.readValue( strJsonData );
-        	
+
             if ( !controleJsonData( jsonRequestObject ) )
             {
-                return clientErrorResponse(request, MESSAGE_ERROR_JSON_DATA);
+                return clientErrorResponse( request, MESSAGE_ERROR_JSON_DATA );
             }
-            
+
             String _strFileExtension = jsonRequestObject.getString( JSON_KEY_FILE_EXTENSION );
-            byte[] _byteFileContent = Base64.getDecoder( ).decode( jsonRequestObject.getString( JSON_KEY_FILE_CONTENT ).getBytes( StandardCharsets.UTF_8 ) );
+            byte [ ] _byteFileContent = Base64.getDecoder( ).decode( jsonRequestObject.getString( JSON_KEY_FILE_CONTENT ).getBytes( StandardCharsets.UTF_8 ) );
             String _strDocumentType = jsonRequestObject.getString( JSON_KEY_DOCUMENT_TYPE );
-            
+
             // proceed OCR
             AppLogService.info( "OCR begin !!" );
             Map<String, String> ocrResults = _ocrService.proceed( _byteFileContent, _strFileExtension, _strDocumentType );
             AppLogService.info( "OCR end !!" );
-            
-            return ocrResultResponse(ocrResults);
-            
-        } catch ( IOException e )
+
+            return ocrResultResponse( ocrResults );
+
+        }
+        catch( IOException e )
         {
             AppLogService.error( e.getMessage( ), e );
-            return clientErrorResponse(request, MESSAGE_ERROR_JSON_DATA);
-        } catch ( OcrException e )
+            return clientErrorResponse( request, MESSAGE_ERROR_JSON_DATA );
+        }
+        catch( OcrException e )
         {
             AppLogService.error( e.getMessage( ), e );
-            return serverErrorResponse(request, MESSAGE_ERROR_OCR_PROCESS, e.getMessage( ));
+            return serverErrorResponse( request, MESSAGE_ERROR_OCR_PROCESS, e.getMessage( ) );
         }
     }
 
-	/**
-	 * ocr Result Response
-	 * 
-	 * @param ocrResults the ocr result
-	 * @return ok response 200 with json format of ocr result data
-	 */
-	private Response ocrResultResponse(Map<String, String> ocrResults) {
-		JSONObject jsonObject = new JSONObject( );
-		jsonObject.accumulateAll( ocrResults );
-		return Response.ok().entity(jsonObject.toString()).build();
-	}
+    /**
+     * ocr Result Response
+     * 
+     * @param ocrResults
+     *            the ocr result
+     * @return ok response 200 with json format of ocr result data
+     */
+    private Response ocrResultResponse( Map<String, String> ocrResults )
+    {
+        JSONObject jsonObject = new JSONObject( );
+        jsonObject.accumulateAll( ocrResults );
+        return Response.ok( ).entity( jsonObject.toString( ) ).build( );
+    }
 
-	/**
-	 * Client Error Response
-	 * 
-	 * @param request            the request
-	 * @param messagePropertyKey the message Property Key
-	 * @return bad request error 400
-	 */
-	private Response clientErrorResponse(HttpServletRequest request, String messagePropertyKey) {
-		JSONObject jsonObject = new JSONObject( );
-		jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_JSON_DATA, request.getLocale( ) ) );
-		return Response.status(Status.BAD_REQUEST).entity(jsonObject.toString()).build();
-	}
-	
-	/**
-	 * Server Error Response
-	 * 
-	 * @param request            the request
-	 * @param messagePropertyKey the message Property Key
-	 * @param messageArgs        the message Args
-	 * @return server error 500
-	 */
-	private Response serverErrorResponse(HttpServletRequest request, String messagePropertyKey, String ... messageArgs) {
-		JSONObject jsonObject = new JSONObject( );
-		jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_OCR_PROCESS, messageArgs, request.getLocale( ) ) );
-		return Response.serverError().entity(jsonObject.toString()).build();
-	}
+    /**
+     * Client Error Response
+     * 
+     * @param request
+     *            the request
+     * @param messagePropertyKey
+     *            the message Property Key
+     * @return bad request error 400
+     */
+    private Response clientErrorResponse( HttpServletRequest request, String messagePropertyKey )
+    {
+        JSONObject jsonObject = new JSONObject( );
+        jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_JSON_DATA, request.getLocale( ) ) );
+        return Response.status( Status.BAD_REQUEST ).entity( jsonObject.toString( ) ).build( );
+    }
+
+    /**
+     * Server Error Response
+     * 
+     * @param request
+     *            the request
+     * @param messagePropertyKey
+     *            the message Property Key
+     * @param messageArgs
+     *            the message Args
+     * @return server error 500
+     */
+    private Response serverErrorResponse( HttpServletRequest request, String messagePropertyKey, String... messageArgs )
+    {
+        JSONObject jsonObject = new JSONObject( );
+        jsonObject.accumulate( JSON_KEY_MESSAGE, I18nService.getLocalizedString( MESSAGE_ERROR_OCR_PROCESS, messageArgs, request.getLocale( ) ) );
+        return Response.serverError( ).entity( jsonObject.toString( ) ).build( );
+    }
 
     /**
      * Control of coherence of the json flux.
@@ -202,9 +213,10 @@ public class OcrResource
      * @throws IOException
      *             the IOException
      */
-    private boolean controleJsonData(JSONObject jsonObject)
+    private boolean controleJsonData( JSONObject jsonObject )
     {
-        return  jsonObject.containsKey( JSON_KEY_FILE_CONTENT ) && jsonObject.containsKey( JSON_KEY_FILE_EXTENSION ) && jsonObject.containsKey( JSON_KEY_DOCUMENT_TYPE ) ;
+        return jsonObject.containsKey( JSON_KEY_FILE_CONTENT ) && jsonObject.containsKey( JSON_KEY_FILE_EXTENSION )
+                && jsonObject.containsKey( JSON_KEY_DOCUMENT_TYPE );
     }
 
 }
